@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda_events: {
+        Row: {
+          class_id: string
+          created_at: string
+          description: string | null
+          event_date: string
+          id: string
+          kind: Database["public"]["Enums"]["agenda_kind"]
+          teacher_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          description?: string | null
+          event_date: string
+          id?: string
+          kind?: Database["public"]["Enums"]["agenda_kind"]
+          teacher_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["agenda_kind"]
+          teacher_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_events_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           capacity: number | null
@@ -411,6 +455,7 @@ export type Database = {
     }
     Enums: {
       account_status: "pending" | "approved" | "rejected"
+      agenda_kind: "homework" | "evaluation"
       app_role: "super_admin"
       app_space: "talameed" | "taleem" | "admin"
       resource_category: "cours" | "exercices"
@@ -542,6 +587,7 @@ export const Constants = {
   public: {
     Enums: {
       account_status: ["pending", "approved", "rejected"],
+      agenda_kind: ["homework", "evaluation"],
       app_role: ["super_admin"],
       app_space: ["talameed", "taleem", "admin"],
       resource_category: ["cours", "exercices"],
