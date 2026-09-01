@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const deleteUserAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ userId: z.string().uuid() }).parse(input))
+  .validator({ adapter: z.object({ userId: z.string().uuid() }) })
   .handler(async ({ data, context }) => {
     const { data: isSuperAdmin } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
