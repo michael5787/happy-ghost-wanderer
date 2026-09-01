@@ -272,6 +272,8 @@ export type Database = {
           file_name: string
           file_path: string
           file_size: number | null
+          grade: number | null
+          graded_at: string | null
           id: string
           level_id: string | null
           mime_type: string | null
@@ -286,6 +288,8 @@ export type Database = {
           file_name: string
           file_path: string
           file_size?: number | null
+          grade?: number | null
+          graded_at?: string | null
           id?: string
           level_id?: string | null
           mime_type?: string | null
@@ -300,6 +304,8 @@ export type Database = {
           file_name?: string
           file_path?: string
           file_size?: number | null
+          grade?: number | null
+          graded_at?: string | null
           id?: string
           level_id?: string | null
           mime_type?: string | null
