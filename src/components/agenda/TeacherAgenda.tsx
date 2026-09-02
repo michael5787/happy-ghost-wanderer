@@ -19,18 +19,10 @@ export function TeacherAgenda({
 }) {
   const [dateKey, setDateKey] = useState(() => toDateKey(new Date()));
   const [classId, setClassId] = useState<string>("");
-  const { rows, loading, error, setError, reload } = useAgenda(
-    client,
-    { teacherId, classId: classId === "" ? undefined : classId },
-    dateKey,
-  );
+  const filter = { teacherId, ...(classId === "" ? {} : { classId }) };
+  const { rows, loading, error, setError, reload } = useAgenda(client, filter, dateKey);
   const [version, setVersion] = useState(0);
-  const counts = useAgendaCounts(
-    client,
-    { teacherId, classId: classId === "" ? undefined : classId },
-    dateKey,
-    version,
-  );
+  const counts = useAgendaCounts(client, filter, dateKey, version);
   const resources = useAttachedResources(client, rows);
   const { rows: myResources } = useResourceList(client, null, [teacherId]);
 
