@@ -4,6 +4,7 @@ import { UserRound } from "lucide-react";
 import { SpaceAuth, Wordmark } from "@/components/SpaceAuth";
 import { StudentResources } from "@/components/resources/StudentResources";
 import { StudentSubmissions } from "@/components/resources/StudentSubmissions";
+import { StudentAgenda } from "@/components/agenda/StudentAgenda";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { useNotifications } from "@/components/resources/useSubmissions";
 import { STATUS_LABEL } from "@/lib/spaces";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/talameed")({
   component: Page,
 });
 
-type Tab = "resources" | "answers" | "notifications" | "account";
+type Tab = "resources" | "agenda" | "answers" | "notifications" | "account";
 
 function Page() {
   return (
@@ -70,6 +71,7 @@ function StudentShell({
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "resources", label: "الدروس والتمارين" },
+    { key: "agenda", label: "المفكرة" },
     { key: "answers", label: "أجوبتي" },
     { key: "notifications", label: "الإشعارات", badge: notifications.unread },
     { key: "account", label: "حسابي" },
@@ -115,6 +117,8 @@ function StudentShell({
             studentName={name}
             onSubmitted={() => void notifications.reload()}
           />
+        ) : tab === "agenda" ? (
+          <StudentAgenda client={client} classId={classId} />
         ) : tab === "answers" ? (
           <StudentSubmissions client={client} studentId={userId} />
         ) : tab === "notifications" ? (
