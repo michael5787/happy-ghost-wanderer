@@ -6,6 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { SpaceAuth, Wordmark } from "@/components/SpaceAuth";
 import { TeacherResources } from "@/components/resources/TeacherResources";
 import { TeacherSubmissions } from "@/components/resources/TeacherSubmissions";
+import { TeacherAgenda } from "@/components/agenda/TeacherAgenda";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { useNotifications } from "@/components/resources/useSubmissions";
 import { STATUS_LABEL } from "@/lib/spaces";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/taleem")({
   component: Page,
 });
 
-type Tab = "resources" | "answers" | "notifications" | "account";
+type Tab = "resources" | "agenda" | "answers" | "notifications" | "account";
 type ClassRow = Database["public"]["Tables"]["classes"]["Row"];
 
 function Page() {
@@ -86,6 +87,7 @@ function TeacherShell({
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "resources", label: "الدروس والتمارين" },
+    { key: "agenda", label: "المفكرة" },
     { key: "answers", label: "أجوبة التلاميذ" },
     { key: "notifications", label: "الإشعارات", badge: notifications.unread },
     { key: "account", label: "حسابي" },
@@ -124,6 +126,8 @@ function TeacherShell({
       <main className="mx-auto w-full max-w-5xl px-4 py-10">
         {tab === "resources" ? (
           <TeacherResources client={client} teacherId={userId} />
+        ) : tab === "agenda" ? (
+          <TeacherAgenda client={client} teacherId={userId} classes={classes} />
         ) : tab === "answers" ? (
           <TeacherSubmissions client={client} teacherId={userId} classes={classes} />
         ) : tab === "notifications" ? (
