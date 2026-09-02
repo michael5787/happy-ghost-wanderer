@@ -22,6 +22,8 @@ export type Database = {
           event_date: string
           id: string
           kind: Database["public"]["Enums"]["agenda_kind"]
+          link_url: string | null
+          resource_id: string | null
           teacher_id: string
           title: string
           updated_at: string
@@ -33,6 +35,8 @@ export type Database = {
           event_date: string
           id?: string
           kind?: Database["public"]["Enums"]["agenda_kind"]
+          link_url?: string | null
+          resource_id?: string | null
           teacher_id: string
           title: string
           updated_at?: string
@@ -44,6 +48,8 @@ export type Database = {
           event_date?: string
           id?: string
           kind?: Database["public"]["Enums"]["agenda_kind"]
+          link_url?: string | null
+          resource_id?: string | null
           teacher_id?: string
           title?: string
           updated_at?: string
@@ -54,6 +60,13 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_events_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
             referencedColumns: ["id"]
           },
         ]
