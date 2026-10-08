@@ -57,6 +57,7 @@ export function useResourceList(
   client: SupabaseClient<Database>,
   levelId?: string | null,
   teacherIds?: string[] | null,
+  classId?: string | null,
 ) {
   const [rows, setRows] = useState<ResourceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,7 @@ export function useResourceList(
     let query = client.from("resources").select("*").order("created_at", { ascending: false });
     if (levelId) query = query.eq("level_id", levelId);
     if (teacherKey) query = query.in("teacher_id", teacherKey.split(","));
+    if (classId) query = query.or(`class_id.is.null,class_id.eq.${classId}`);
     const { data, error: err } = await query;
     if (err) setError("تعذّر تحميل الملفات.");
     else {
@@ -82,7 +84,7 @@ export function useResourceList(
       setRows(data ?? []);
     }
     setLoading(false);
-  }, [client, levelId, teacherKey]);
+  }, [client, levelId, teacherKey, classId]);
 
 
   useEffect(() => {
@@ -91,3 +93,56 @@ export function useResourceList(
 
   return { rows, loading, error, setError, reload: load };
 }
+
+export type ClassOption = { id: string; name: string; level_id: string | null };
+
+export function useTeacherClasses(client: SupabaseClient<Database>, teacherId: string) {
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await client
+        .from("teacher_classes")
+        .select("class_id, classes(id, name, level_id)")
+        .eq("teacher_id", teacherId);
+      if (!active) return;
+      const list = (data ?? [])
+        .map((r) => (r as { classes: ClassOption | null }).classes)
+        .filter((c): c is ClassOption => c !== null)
+        .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+      setClasses(list);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [client, teacherId]);
+  return classes;
+}
+
+export type ChapterRow = Database["public"]["Tables"]["chapters"]["Row"];
+
+/** Chapters of one level (or all levels when levelId is undefined). */
+export function useChapters(client: SupabaseClient<Database>, levelId?: string | null) {
+  const [chapters, setChapters] = useState<ChapterRow[]>([]);
+  useEffect(() => {
+    let active = true;
+    if (levelId === null) {
+      setChapters([]);
+      return;
+    }
+    let q = client.from("chapters").select("*");
+    if (levelId) q = q.eq("level_id", levelId);
+    void q
+      .order("position", { ascending: true })
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (active) setChapters(data ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, levelId]);
+  return chapters;
+}
+
+export const NO_CHAPTER_LABEL = "بدون محور";
