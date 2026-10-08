@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { SPACE_LABEL, STATUS_LABEL, type SpaceKey } from "@/lib/spaces";
-import { setUserPassword } from "@/lib/admin-users.functions";
+import { setUserPassword, setUserEmail, confirmApprovedUserEmail } from "@/lib/admin-users.functions";
 import { PasswordField } from "@/components/PasswordField";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -26,6 +26,7 @@ export function UsersPanel({ client }: { client: SupabaseClient<Database> }) {
   const [spaceFilter, setSpaceFilter] = useState<"all" | SpaceKey>("all");
   const [editing, setEditing] = useState<ProfileRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +41,16 @@ export function UsersPanel({ client }: { client: SupabaseClient<Database> }) {
     else {
       setError(null);
       setRows(p ?? []);
+      const paths = (p ?? []).map((r) => r.avatar_path).filter((x): x is string => !!x);
+      if (paths.length > 0) {
+        const { data: signed } = await client.storage.from("avatars").createSignedUrls(paths, 3600);
+        const map: Record<string, string> = {};
+        for (const r of p ?? []) {
+          const hit = signed?.find((s) => s.path === r.avatar_path);
+          if (hit?.signedUrl) map[r.id] = hit.signedUrl;
+        }
+        setAvatarUrls(map);
+      } else setAvatarUrls({});
       setLevels(lv ?? []);
       setClasses(cl ?? []);
       setTeacherClasses(tc ?? []);
@@ -77,6 +88,15 @@ export function UsersPanel({ client }: { client: SupabaseClient<Database> }) {
           .from("teacher_classes")
           .insert(toAdd.map((class_id) => ({ teacher_id: editing.id, class_id })));
         syncErr = e ?? syncErr;
+      }
+    }
+    if (!err && patch.status === "approved") {
+      // Approving an account must also make it usable: clear any pending
+      // email-confirmation gate so the user can sign in right away.
+      try {
+        await confirmApprovedUserEmail({ data: { email: editing.email } });
+      } catch {
+        /* non blocking */
       }
     }
     if (err || syncErr) setError("تعذّر حفظ المستخدم.");
@@ -154,12 +174,17 @@ export function UsersPanel({ client }: { client: SupabaseClient<Database> }) {
                     levels={levels}
                     classes={classes}
                     teacherClassIds={teacherClassIdsOf(r.id)}
+                    client={client}
+                    avatarUrl={avatarUrls[r.id]}
+                    onAvatarChanged={load}
                     busy={busy}
                     onCancel={() => setEditing(null)}
                     onSave={save}
                   />
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                    <Avatar url={avatarUrls[r.id]} label={r.full_name || r.email} />
                     <div>
                       <div className="text-sm font-semibold text-foreground">
                         {r.full_name || <span dir="ltr">{r.email}</span>}
@@ -191,6 +216,7 @@ export function UsersPanel({ client }: { client: SupabaseClient<Database> }) {
                         ) : null}
                       </div>
                     </div>
+                    </div>
                     <div className="flex gap-2">
                       <button type="button" className="btn-text" onClick={() => setEditing(r)}>
                         تعديل
@@ -210,7 +236,23 @@ export function UsersPanel({ client }: { client: SupabaseClient<Database> }) {
   );
 }
 
+function Avatar({ url, label, size = 40 }: { url?: string | undefined; label: string; size?: number }) {
+  return url ? (
+    <img src={url} alt={label} style={{ width: size, height: size }} className="shrink-0 rounded-full border border-border object-cover" />
+  ) : (
+    <div
+      style={{ width: size, height: size }}
+      className="flex shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
+    >
+      {label.trim().charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 function UserEditor({
+  client,
+  avatarUrl,
+  onAvatarChanged,
   row,
   levels,
   classes,
@@ -226,7 +268,48 @@ function UserEditor({
   busy: boolean;
   onCancel: () => void;
   onSave: (patch: Partial<ProfileRow>, teacherClassIds?: string[]) => Promise<void>;
+  client: SupabaseClient<Database>;
+  avatarUrl?: string | undefined;
+  onAvatarChanged: () => Promise<void>;
 }) {
+  const [avBusy, setAvBusy] = useState(false);
+  const [avMsg, setAvMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [preview, setPreview] = useState<string | undefined>(avatarUrl);
+  const uploadAvatar = async (file: File) => {
+    if (!file.type.startsWith("image/")) return setAvMsg({ ok: false, text: "يجب اختيار صورة." });
+    if (file.size > 5 * 1024 * 1024) return setAvMsg({ ok: false, text: "الحد الأقصى 5 ميغابايت." });
+    setAvBusy(true);
+    setAvMsg(null);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${row.id}/${Date.now()}.${ext}`;
+    const { error: upErr } = await client.storage.from("avatars").upload(path, file, { contentType: file.type });
+    if (upErr) {
+      setAvMsg({ ok: false, text: "تعذّر رفع الصورة." });
+      setAvBusy(false);
+      return;
+    }
+    const { error: dbErr } = await client.from("profiles").update({ avatar_path: path }).eq("id", row.id);
+    if (dbErr) setAvMsg({ ok: false, text: "تعذّر حفظ الصورة." });
+    else {
+      if (row.avatar_path) await client.storage.from("avatars").remove([row.avatar_path]);
+      setPreview(URL.createObjectURL(file));
+      setAvMsg({ ok: true, text: "تم تحديث الصورة." });
+      void onAvatarChanged();
+    }
+    setAvBusy(false);
+  };
+  const removeAvatar = async () => {
+    if (!row.avatar_path) return;
+    setAvBusy(true);
+    const { error: dbErr } = await client.from("profiles").update({ avatar_path: null }).eq("id", row.id);
+    if (!dbErr) {
+      await client.storage.from("avatars").remove([row.avatar_path]);
+      setPreview(undefined);
+      setAvMsg({ ok: true, text: "تم حذف الصورة." });
+      void onAvatarChanged();
+    } else setAvMsg({ ok: false, text: "تعذّر حذف الصورة." });
+    setAvBusy(false);
+  };
   const [fullName, setFullName] = useState(row.full_name ?? "");
   const [space, setSpace] = useState(row.space);
   const [status, setStatus] = useState(row.status);
@@ -236,7 +319,23 @@ function UserEditor({
   const [newPassword, setNewPassword] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [newEmail, setNewEmail] = useState(row.email);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const updatePasswordFn = useServerFn(setUserPassword);
+  const updateEmailFn = useServerFn(setUserEmail);
+
+  const failText = (err: unknown, action: string) => {
+    const msg = err instanceof Error ? err.message : "";
+    if (/Forbidden/i.test(msg)) return `${action}: هذا الحساب لا يملك صلاحيات المشرف العام.`;
+    if (/Unauthorized/i.test(msg)) return `${action}: انتهت جلستك، أعد تسجيل الدخول.`;
+    if (/weak|easy to guess/i.test(msg))
+      return `${action}: كلمة المرور ضعيفة جداً، اختر كلمة مرور أقوى.`;
+    if (/should be at least|Password should be/i.test(msg))
+      return `${action}: كلمة المرور قصيرة جداً (6 أحرف على الأقل).`;
+    return `${action}${msg ? ` (${msg})` : ""}.`;
+  };
+
 
   const updatePassword = async () => {
     if (newPassword.length < 6) return;
@@ -246,10 +345,24 @@ function UserEditor({
       await updatePasswordFn({ data: { userId: row.id, password: newPassword } });
       setNewPassword("");
       setPwMsg({ ok: true, text: "تم تحديث كلمة المرور." });
-    } catch {
-      setPwMsg({ ok: false, text: "تعذّر تحديث كلمة المرور. تأكد من صلاحيات المشرف العام." });
+    } catch (err) {
+      setPwMsg({ ok: false, text: failText(err, "تعذّر تحديث كلمة المرور") });
     }
     setPwBusy(false);
+  };
+
+  const updateEmail = async () => {
+    const value = newEmail.trim();
+    if (value === "" || value === row.email) return;
+    setEmailBusy(true);
+    setEmailMsg(null);
+    try {
+      await updateEmailFn({ data: { userId: row.id, email: value } });
+      setEmailMsg({ ok: true, text: "تم تحديث البريد الإلكتروني." });
+    } catch (err) {
+      setEmailMsg({ ok: false, text: failText(err, "تعذّر تحديث البريد الإلكتروني") });
+    }
+    setEmailBusy(false);
   };
 
 
@@ -278,8 +391,35 @@ function UserEditor({
         );
       }}
     >
-      <div className="text-xs text-muted-foreground sm:col-span-3" dir="ltr">
-        {row.email}
+      <div className="flex flex-wrap items-center gap-4 sm:col-span-3">
+        <Avatar url={preview} label={row.full_name || row.email} size={64} />
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground" dir="ltr">{row.email}</span>
+          <div className="flex flex-wrap gap-2">
+            <label className="btn-text cursor-pointer">
+              {avBusy ? "جارٍ الرفع…" : "رفع صورة الملف الشخصي"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={avBusy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadAvatar(f);
+                }}
+              />
+            </label>
+            {preview ? (
+              <button type="button" className="btn-text" disabled={avBusy} onClick={() => void removeAvatar()}>
+                حذف الصورة
+              </button>
+            ) : null}
+          </div>
+          {avMsg ? (
+            <span className={`text-xs ${avMsg.ok ? "text-muted-foreground" : "text-destructive"}`}>{avMsg.text}</span>
+          ) : null}
+        </div>
       </div>
       <input
         className="field-input"
@@ -400,6 +540,36 @@ function UserEditor({
         ) : (
           <p className="mt-2 text-xs text-muted-foreground">6 أحرف على الأقل.</p>
         )}
+      </fieldset>
+      <fieldset className="sm:col-span-3 rounded-2xl border border-border p-4">
+        <legend className="px-1 text-xs font-semibold text-muted-foreground">
+          تغيير البريد الإلكتروني لهذا المستخدم
+        </legend>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="email"
+            dir="ltr"
+            className="field-input min-w-[16rem] flex-1"
+            value={newEmail}
+            onChange={(e) => {
+              setNewEmail(e.target.value);
+              setEmailMsg(null);
+            }}
+          />
+          <button
+            type="button"
+            className="btn-text"
+            disabled={emailBusy || newEmail.trim() === "" || newEmail.trim() === row.email}
+            onClick={() => void updateEmail()}
+          >
+            {emailBusy ? "جارٍ التحديث…" : "تحديث البريد"}
+          </button>
+        </div>
+        {emailMsg ? (
+          <p className={`mt-2 text-xs ${emailMsg.ok ? "text-muted-foreground" : "text-destructive"}`}>
+            {emailMsg.text}
+          </p>
+        ) : null}
       </fieldset>
 
       <div className="flex gap-2">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, LinkIcon, Paperclip } from "lucide-react";
+import { BookOpen, ClipboardCheck, Download, LinkIcon, Paperclip } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { openResource, type ResourceRow } from "@/components/resources/useResources";
@@ -79,12 +79,14 @@ export function AgendaCard({
   client,
   row,
   resource,
+  className,
   onError,
   actions,
 }: {
   client: Client;
   row: AgendaRow;
   resource?: ResourceRow;
+  className?: string | undefined;
   onError: (msg: string) => void;
   actions?: React.ReactNode;
 }) {
@@ -97,38 +99,56 @@ export function AgendaCard({
     }
   };
 
+  const isEval = row.kind === "evaluation";
+  const accent = isEval ? "bg-brand-red" : "bg-brand-green";
+  const tint = isEval
+    ? "bg-brand-red/10 text-brand-red"
+    : "bg-brand-green/10 text-brand-green";
+
   return (
-    <article className="resource-card p-4 text-start">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              row.kind === "evaluation"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-primary/10 text-primary"
-            }`}
-          >
-            {AGENDA_KIND_LABEL[row.kind]}
+    <article className="group relative overflow-hidden rounded-2xl border border-border bg-card/95 p-4 ps-5 text-start shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <span aria-hidden className={`absolute inset-y-0 end-0 w-1.5 ${accent}`} />
+
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-start gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tint}`}>
+            {isEval ? <ClipboardCheck size={18} /> : <BookOpen size={18} />}
           </span>
-          <h3 className="text-base font-semibold text-foreground">{row.title}</h3>
+          <div>
+            <span className="flex flex-wrap items-center gap-1.5">
+              <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tint}`}>
+                {AGENDA_KIND_LABEL[row.kind]}
+              </span>
+              {className ? (
+                <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  {className}
+                </span>
+              ) : null}
+            </span>
+            <h3 className="mt-1 text-base font-semibold leading-tight text-foreground">{row.title}</h3>
+          </div>
         </div>
         {actions}
       </div>
 
       {row.description ? (
-        <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{row.description}</p>
+        <p className="mt-3 whitespace-pre-wrap rounded-xl bg-muted/50 p-3 text-sm leading-relaxed text-muted-foreground">
+          {row.description}
+        </p>
       ) : null}
 
       {resource ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-sm">
           <Paperclip size={14} className="text-muted-foreground" />
           <span className="font-medium text-foreground">{resource.title}</span>
-          <button type="button" className="btn-text" onClick={() => void open(false)}>
-            فتح
-          </button>
-          <button type="button" className="btn-text" onClick={() => void open(true)}>
-            <Download size={14} className="inline" /> تحميل
-          </button>
+          <span className="ms-auto flex gap-2">
+            <button type="button" className="btn-text" onClick={() => void open(false)}>
+              فتح
+            </button>
+            <button type="button" className="btn-text" onClick={() => void open(true)}>
+              <Download size={14} className="inline" /> تحميل
+            </button>
+          </span>
         </div>
       ) : null}
 
@@ -139,7 +159,7 @@ export function AgendaCard({
             href={row.link_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-text"
+            className="btn-text truncate"
             dir="ltr"
           >
             {row.link_url}
@@ -149,3 +169,4 @@ export function AgendaCard({
     </article>
   );
 }
+
