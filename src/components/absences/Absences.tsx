@@ -19,7 +19,7 @@ export function absenceDays(start: string, end: string) {
   return Math.round((b - a) / 86400000) + 1;
 }
 
-function AbsenceItem({ row, onDelete }: { row: AbsenceRow; onDelete?: () => void }) {
+function AbsenceItem({ row, onDelete }: { row: AbsenceRow; onDelete?: (() => void) | undefined }) {
   const days = absenceDays(row.start_date, row.end_date);
   return (
     <li className="flex items-start justify-between gap-3 px-4 py-4">
