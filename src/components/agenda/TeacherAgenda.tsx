@@ -186,7 +186,10 @@ export function TeacherAgenda({
     if (!window.confirm(`حذف «${row.title}»؟`)) return;
     const { error: err } = await client.from("agenda_events").delete().eq("id", row.id);
     if (err) setError("تعذّر الحذف.");
-    else await refresh();
+    else {
+      await undated.reload();
+      await refresh();
+    }
   };
 
   return (
