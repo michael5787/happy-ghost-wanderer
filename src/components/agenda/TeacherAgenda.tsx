@@ -8,9 +8,12 @@ import { LessonLog } from "./LessonLog";
 import { AgendaCard, useAgendaCounts, useAttachedResources } from "./agendaShared";
 import {
   AGENDA_KIND_LABEL,
+  DEFAULT_EXAMS,
+  TRIMESTER_LABEL,
   toDateKey,
   useAgenda,
   useFirstPendingDay,
+  useUndatedAgenda,
   type AgendaKind,
   type AgendaRow,
 } from "./useAgenda";
@@ -49,6 +52,7 @@ export function TeacherAgenda({
   }, []);
   const filter = { teacherId, ...(classId === "" ? {} : { classId }) };
   const { rows, loading, error, setError, reload } = useAgenda(client, filter, dateKey);
+  const undated = useUndatedAgenda(client, filter);
   const [version, setVersion] = useState(0);
   const counts = useAgendaCounts(client, filter, dateKey, version);
   const resources = useAttachedResources(client, rows);
