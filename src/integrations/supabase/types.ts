@@ -115,6 +115,47 @@ export type Database = {
           },
         ]
       }
+      behavior_grades: {
+        Row: {
+          class_id: string | null
+          comment: string | null
+          created_at: string
+          grade: number
+          id: string
+          student_id: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          comment?: string | null
+          created_at?: string
+          grade: number
+          id?: string
+          student_id: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          comment?: string | null
+          created_at?: string
+          grade?: number
+          id?: string
+          student_id?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavior_grades_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           created_at: string
