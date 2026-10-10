@@ -36,6 +36,13 @@
       "when": 1791520125473,
       "tag": "0004_create_absences",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791616422927,
+      "tag": "0005_create_behavior_grades",
+      "breakpoints": true
     }
   ]
 }
