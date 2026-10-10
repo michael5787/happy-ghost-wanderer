@@ -149,6 +149,39 @@ export function TeacherAgenda({
   };
 
 
+  /** Crée les 9 évaluations par défaut (3 par trimestre) sans date pour une classe. */
+  const createDefaults = async (targetClass: string) => {
+    setError(null);
+    setBusy(true);
+    const { error: err } = await client.from("agenda_events").insert(
+      DEFAULT_EXAMS.map((d) => ({
+        teacher_id: teacherId,
+        class_id: targetClass,
+        kind: "evaluation" as AgendaKind,
+        title: d.title,
+        trimester: d.trimester,
+        event_date: null,
+      })),
+    );
+    setBusy(false);
+    if (err) setError("تعذّر إنشاء الفروض والامتحانات الافتراضية.");
+    else await undated.reload();
+  };
+
+  /** Assigne la date actuellement sélectionnée → l'élément devient visible aux élèves. */
+  const assignDate = async (row: AgendaRow) => {
+    setError(null);
+    const { error: err } = await client
+      .from("agenda_events")
+      .update({ event_date: dateKey })
+      .eq("id", row.id);
+    if (err) setError("تعذّر تعيين التاريخ.");
+    else {
+      await undated.reload();
+      await refresh();
+    }
+  };
+
   const remove = async (row: AgendaRow) => {
     if (!window.confirm(`حذف «${row.title}»؟`)) return;
     const { error: err } = await client.from("agenda_events").delete().eq("id", row.id);
