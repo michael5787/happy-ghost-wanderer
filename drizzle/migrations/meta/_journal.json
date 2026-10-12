@@ -50,6 +50,13 @@
       "when": 1791619552965,
       "tag": "0006_agenda_undated_trimester_events",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791780466863,
+      "tag": "0007_create_course_files",
+      "breakpoints": true
     }
   ]
 }
