@@ -171,4 +171,3 @@ export function AgendaCard({
     </article>
   );
 }
-
