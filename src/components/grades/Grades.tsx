@@ -134,7 +134,8 @@ export function TeacherEvaluations({
         <ul className="mt-6 space-y-3">
           {filtered.map((r) => {
             const g = grades.filter((x) => x.evaluation_id === r.id);
-            const avg = g.length ? g.reduce((s, x) => s + Number(x.grade), 0) / g.length : null;
+            const scored = g.filter((x) => x.grade != null);
+            const avg = scored.length ? scored.reduce((s, x) => s + Number(x.grade), 0) / scored.length : null;
             return (
               <li key={r.id} className="resource-card p-4">
                 <button
@@ -167,7 +168,11 @@ export function TeacherEvaluations({
                       {g.map((x) => (
                         <li key={x.id} className="flex justify-between gap-3 py-2">
                           <span>{names[x.student_id] ?? "—"}</span>
-                          <span className="font-semibold">{fmt(x.grade)}/20</span>
+                          {x.grade != null ? (
+                            <span className="font-semibold">{fmt(x.grade)}/20</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">لم يحدد بعد</span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -495,9 +500,13 @@ export function StudentGrades({ client, classId, studentId, trimester = "" }: { 
                   {g?.comment ? <div className="mt-1 text-xs text-foreground">{g.comment}</div> : null}
                 </div>
                 {g ? (
-                  <span className="rounded-full bg-success/10 px-3 py-1 text-sm font-bold text-success">
-                    {fmt(g.grade)}/20
-                  </span>
+                  g.grade != null ? (
+                    <span className="rounded-full bg-success/10 px-3 py-1 text-sm font-bold text-success">
+                      {fmt(g.grade)}/20
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">لم يحدد بعد</span>
+                  )
                 ) : (
                   <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">لم تُسجَّل بعد</span>
                 )}
