@@ -200,6 +200,7 @@ export function GradeForm({
   const [existing, setExisting] = useState<GradeRow[]>([]);
   const [evalId, setEvalId] = useState("");
   const [grade, setGrade] = useState("");
+  const [undetermined, setUndetermined] = useState(false);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -214,7 +215,8 @@ export function GradeForm({
 
   useEffect(() => {
     const g = existing.find((x) => x.evaluation_id === evalId);
-    setGrade(g ? String(g.grade) : "");
+    setGrade(g?.grade != null ? String(g.grade) : "");
+    setUndetermined(g ? g.grade == null : false);
     setComment(g?.comment ?? "");
   }, [evalId, existing]);
 
@@ -222,11 +224,11 @@ export function GradeForm({
     e.preventDefault();
     const n = Number(grade.replace(",", "."));
     if (!evalId) return setMsg("اختر التقييم.");
-    if (!Number.isFinite(n) || n < 0 || n > 20) return setMsg("النقطة يجب أن تكون بين 0 و 20.");
+    if (!undetermined && (!Number.isFinite(n) || n < 0 || n > 20)) return setMsg("النقطة يجب أن تكون بين 0 و 20.");
     setBusy(true);
     setMsg(null);
     const { error } = await client.from("evaluation_grades").upsert(
-      { evaluation_id: evalId, student_id: studentId, teacher_id: teacherId, grade: n, comment: comment.trim() || null },
+      { evaluation_id: evalId, student_id: studentId, teacher_id: teacherId, grade: undetermined ? null : n, comment: comment.trim() || null },
       { onConflict: "evaluation_id,student_id" },
     );
     setBusy(false);
@@ -250,14 +252,25 @@ export function GradeForm({
           </option>
         ))}
       </select>
-      <input
-        className="field-input text-sm"
-        inputMode="decimal"
-        placeholder="النقطة /20"
-        value={grade}
-        onChange={(e) => setGrade(e.target.value)}
-        aria-label="النقطة"
-      />
+      <div className="flex items-center gap-2">
+        <input
+          className="field-input text-sm"
+          inputMode="decimal"
+          placeholder="النقطة /20"
+          value={grade}
+          onChange={(e) => setGrade(e.target.value)}
+          aria-label="النقطة"
+          disabled={undetermined}
+        />
+        <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={undetermined}
+            onChange={(e) => setUndetermined(e.target.checked)}
+          />
+          غير محدد
+        </label>
+      </div>
       <input
         className="field-input text-sm"
         placeholder="ملاحظة (اختياري)"
